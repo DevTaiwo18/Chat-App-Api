@@ -34,7 +34,9 @@ export const signup = async (req: Request, res: Response) => {
       type: 'verification'
     });
 
-    res.status(201).json({ message: 'User created. Please verify your email.' });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '24h' });
+
+    res.status(201).json({ message: 'User created. Please verify your email.', token });
   } catch (error) {
     res.status(500).json({ message: 'Error creating user', error });
   }
