@@ -446,10 +446,10 @@ export const sendEmail = async ({ to, subject, text, type, userData }: EmailOpti
         ? createVerificationTemplate(link)
         : createPasswordResetTemplate(link);
     } else if (type === 'likeNotification' && userData) {
-      const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      const baseUrl = process.env.CLIENT_URL || 'https://chat-app-h1l6.vercel.app';
       template = createLikeNotificationTemplate(userData, baseUrl);
     } else if (type === 'messageNotification' && userData) {
-      const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      const baseUrl = process.env.CLIENT_URL || 'https://chat-app-h1l6.vercel.app';
       template = createMessageNotificationTemplate(userData, baseUrl);
     }
 
