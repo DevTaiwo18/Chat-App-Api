@@ -7,7 +7,7 @@ interface EmailOptions {
   to: string;
   subject: string;
   text: string;
-  type: 'verification' | 'resetPassword' | 'likeNotification';
+  type: 'verification' | 'resetPassword' | 'likeNotification' | 'messageNotification';
   userData?: UserData;
 }
 
@@ -303,6 +303,130 @@ const createLikeNotificationTemplate = (userData: UserData, baseUrl: string) => 
 `;
 };
 
+const createMessageNotificationTemplate = (userData: UserData, baseUrl: string) => {
+  const { name, profilePicture, id } = userData;
+
+  const initials = name
+    ? name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2)
+    : '?';
+
+  const profileImageHtml = profilePicture
+    ? `<img src="${profilePicture}" alt="${name}'s profile" 
+        style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-right: 15px;">`
+    : `<div style="width: 80px; height: 80px; border-radius: 50%; background-color: #FF6B6B; 
+        color: white; margin-right: 15px; text-align: center;">
+        <div style="line-height: 80px; font-size: 32px; font-weight: 500;">${initials}</div>
+      </div>`;
+
+  const messagesUrl = `${baseUrl}/auth/dashboard/messages/${id}`;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      font-family: 'Arial', sans-serif;
+      line-height: 1.6;
+    }
+    .header {
+      background-color: #FF6B6B;
+      padding: 20px;
+      text-align: center;
+    }
+    .header h1 {
+      color: white;
+      margin: 0;
+      font-size: 28px;
+    }
+    .content {
+      padding: 30px 20px;
+      background-color: #ffffff;
+      text-align: center;
+    }
+    .message-card {
+      background-color: #F9F9F9;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      text-align: left;
+    }
+    .message-details {
+      flex-grow: 1;
+    }
+    .message-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+      margin: 0 0 5px 0;
+    }
+    .message-preview {
+      color: #666;
+      margin: 0;
+      font-size: 14px;
+    }
+    .reply-button {
+      display: inline-block;
+      padding: 12px 40px;
+      background-color: #FF6B6B;
+      color: white;
+      text-decoration: none;
+      border-radius: 50px;
+      margin: 20px 0;
+      text-align: center;
+      font-weight: 500;
+      font-size: 16px;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <h1>HeartLink</h1>
+    </div>
+    <div class="content">
+      <h2>New Message!</h2>
+      
+      <p>You've received a new message from ${name}.</p>
+      
+      <div class="message-card">
+        ${profileImageHtml}
+        <div class="message-details">
+          <h3 class="message-name">${name}</h3>
+          <p class="message-preview">You have a new message waiting...</p>
+        </div>
+      </div>
+      
+      <p>Click below to read and reply!</p>
+      <a href="${messagesUrl}" class="reply-button">View Message</a>
+      
+    </div>
+    <div class="footer">
+      <p>© 2025 HeartLink. All rights reserved.</p>
+      <p>You're receiving this email because you have an account on HeartLink.</p>
+      <p>To stop receiving these notifications, update your preferences in your account settings.</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+};
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -324,6 +448,9 @@ export const sendEmail = async ({ to, subject, text, type, userData }: EmailOpti
     } else if (type === 'likeNotification' && userData) {
       const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
       template = createLikeNotificationTemplate(userData, baseUrl);
+    } else if (type === 'messageNotification' && userData) {
+      const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      template = createMessageNotificationTemplate(userData, baseUrl);
     }
 
     const info = await transporter.sendMail({

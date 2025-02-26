@@ -6,6 +6,7 @@ import authRoutes from './routes/authRoutes';
 import profileRoutes from './routes/profileRoutes';
 import matchRoutes from './routes/matchRoutes';
 import { errorHandler } from './middleware/errorHandler';
+import messageRoutes from './routes/messageRoutes';
 
 const app: Express = express();
 
@@ -18,6 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/match', matchRoutes);
+app.use('/api/messages', messageRoutes);
 
 app.use(errorHandler);
 
