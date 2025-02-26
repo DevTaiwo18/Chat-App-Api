@@ -7,7 +7,18 @@ interface EmailOptions {
   to: string;
   subject: string;
   text: string;
-  type: 'verification' | 'resetPassword';
+  type: 'verification' | 'resetPassword' | 'likeNotification';
+  userData?: UserData;
+}
+
+interface UserData {
+  name: string;
+  age?: number;
+  gender?: string;
+  bio?: string;
+  interests?: string[];
+  profilePicture?: string;
+  id: string;
 }
 
 const createVerificationTemplate = (link: string) => `
@@ -143,6 +154,155 @@ const createPasswordResetTemplate = (link: string) => `
 </html>
 `;
 
+const createLikeNotificationTemplate = (userData: UserData, baseUrl: string) => {
+  const { name, age, gender, bio, interests, profilePicture, id } = userData;
+
+  const ageGenderText = [
+    age ? `${age}` : '',
+    gender ? `${gender.charAt(0).toUpperCase() + gender.slice(1)}` : ''
+  ].filter(Boolean).join(', ');
+
+  const interestBadges = interests && interests.length > 0
+    ? `<div style="margin-top: 15px; margin-bottom: 15px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+          ${interests.map(interest =>
+      `<span style="display: inline-block; background-color: #FFECEC; color: #FF6B6B; 
+              border-radius: 20px; padding: 5px 10px; margin-right: 5px; margin-bottom: 5px; 
+              font-size: 12px;">${interest}</span>`
+    ).join('')}
+        </div>
+      </div>`
+    : '';
+
+  const initials = name
+    ? name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2)
+    : '?';
+
+  const profileImageHtml = profilePicture
+    ? `<img src="${profilePicture}" alt="${name}'s profile" 
+        style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin: 0 auto; display: block;">`
+    : `<div style="width: 150px; height: 150px; border-radius: 50%; background-color: #FF6B6B; 
+        color: white; margin: 0 auto; display: block; text-align: center;">
+        <div style="line-height: 150px; font-size: 48px; font-weight: 500;">${initials}</div>
+      </div>`;
+
+  const likeUrl = `${baseUrl}/auth/dashboard/matches?action=like&userId=${id}`;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      font-family: 'Arial', sans-serif;
+      line-height: 1.6;
+    }
+    .header {
+      background-color: #FF6B6B;
+      padding: 20px;
+      text-align: center;
+    }
+    .header h1 {
+      color: white;
+      margin: 0;
+      font-size: 28px;
+    }
+    .content {
+      padding: 30px 20px;
+      background-color: #ffffff;
+      text-align: center;
+    }
+    .profile-card {
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 24px;
+      margin: 20px 0;
+    }
+    .profile-name {
+      font-size: 24px;
+      font-weight: 600;
+      color: #333;
+      margin: 15px 0 4px 0;
+    }
+    .profile-details {
+      background-color: #f8f8f8;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 14px;
+      color: #666;
+      display: inline-block;
+      margin-bottom: 15px;
+    }
+    .bio {
+      color: #555;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .like-button {
+      display: inline-block;
+      padding: 12px 40px;
+      background-color: #FF6B6B;
+      color: white;
+      text-decoration: none;
+      border-radius: 50px;
+      margin: 20px 0;
+      text-align: center;
+      font-weight: 500;
+      font-size: 16px;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <h1>HeartLink</h1>
+    </div>
+    <div class="content">
+      <h2>${name} likes you! ❤️</h2>
+      
+      <div class="profile-card">
+        ${profileImageHtml}
+        
+        <h3 class="profile-name">${name}</h3>
+        ${ageGenderText ? `<div class="profile-details">${ageGenderText}</div>` : ''}
+        
+        ${bio ? `<p class="bio">${bio}</p>` : ''}
+        
+        ${interestBadges}
+      </div>
+      
+      <p>Click below to like ${name} back and start chatting!</p>
+      <a href="${likeUrl}" class="like-button">Like Back</a>
+      
+      <p style="margin-top: 30px; color: #666; font-size: 13px;">
+        If you're not interested, simply ignore this email and continue browsing other matches in the app.
+      </p>
+    </div>
+    <div class="footer">
+      <p>© 2025 HeartLink. All rights reserved.</p>
+      <p>You're receiving this email because you have an account on HeartLink.</p>
+      <p>To stop receiving these notifications, update your preferences in your account settings.</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+};
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -151,18 +311,26 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-export const sendEmail = async ({ to, subject, text, type }: EmailOptions) => {
+export const sendEmail = async ({ to, subject, text, type, userData }: EmailOptions) => {
   try {
-    const link = text.split(': ')[1];
-    const template = type === 'verification' 
-      ? createVerificationTemplate(link)
-      : createPasswordResetTemplate(link);
+    let template;
+    let htmlText = text;
+
+    if (type === 'verification' || type === 'resetPassword') {
+      const link = text.split(': ')[1];
+      template = type === 'verification'
+        ? createVerificationTemplate(link)
+        : createPasswordResetTemplate(link);
+    } else if (type === 'likeNotification' && userData) {
+      const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      template = createLikeNotificationTemplate(userData, baseUrl);
+    }
 
     const info = await transporter.sendMail({
       from: `"HeartLink" <${process.env.EMAIL_USER}>`,
       to,
       subject,
-      text,
+      text: htmlText,
       html: template
     });
 
